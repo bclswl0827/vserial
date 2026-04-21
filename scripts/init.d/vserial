@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+depend() {
+   need localmount
+}
+
+: ${VDEVICE:="/dev/ttyS0"}
+: ${VNUMBER:="2"}
+: ${VBAUDRATE:="9600"}
+
+command="/usr/bin/vserial"
+command_args="-baudrate ${VBAUDRATE} -device ${VDEVICE} -number ${VNUMBER}"
+command_background="yes"
+pidfile="/run/vserial.pid"
