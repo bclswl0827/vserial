@@ -7,8 +7,19 @@ depend() {
 : ${VDEVICE:="/dev/ttyS0"}
 : ${VNUMBER:="2"}
 : ${VBAUDRATE:="9600"}
+: ${VLINE:="no"}
 
 command="/usr/bin/vserial"
-command_args="-baudrate ${VBAUDRATE} -device ${VDEVICE} -number ${VNUMBER}"
+
+case "${VLINE}" in
+    [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|1)
+        vline_arg="-line"
+        ;;
+    *)
+        vline_arg=""
+        ;;
+esac
+
+command_args="-baudrate ${VBAUDRATE} -device ${VDEVICE} -number ${VNUMBER} ${vline_arg}"
 command_background="yes"
 pidfile="/run/vserial.pid"

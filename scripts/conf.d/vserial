@@ -1,0 +1,4 @@
+VDEVICE="/dev/ttyS0"
+VNUMBER="2"
+VBAUDRATE="9600"
+VLINE="yes"
