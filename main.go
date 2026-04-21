@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ func main() {
 		log.Fatalf("failed to open physical port %s: %v\n", args.Device, err)
 	}
 	defer physicalPort.Close()
-	log.Printf("successfully opened physical port: %s\n", args.Device)
+	log.Printf("successfully opened physical port: %s (LineMode: %v)\n", args.Device, args.LineMode)
 
 	var masters []*os.File
 	var mu sync.Mutex
@@ -32,23 +33,47 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to create virtual port %d: %v", i, err)
 		}
+		if err = os.Chmod(slave.Name(), 0660); err != nil {
+			log.Printf("chmod failed: %v\n", err)
+		}
 		masters = append(masters, master)
 		log.Printf("virtual port %d created: %s\n", i, slave.Name())
 	}
 
 	go func() {
-		buf := make([]byte, 32)
-		for {
-			n, err := physicalPort.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					log.Printf("read physical port error: %v\n", err)
+		if args.LineMode {
+			scanner := bufio.NewScanner(physicalPort)
+			for scanner.Scan() {
+				data := scanner.Bytes()
+				line := append(data, '\n')
+
+				log.Printf("RX (Line) %d bytes: %q\n", len(line), line)
+
+				for _, m := range masters {
+					_, _ = m.Write(line)
 				}
-				break
 			}
-			data := buf[:n]
-			for _, m := range masters {
-				_, _ = m.Write(data)
+			if err := scanner.Err(); err != nil {
+				log.Printf("physical port scanner error: %v\n", err)
+			}
+		} else {
+			buf := make([]byte, 32)
+			for {
+				n, err := physicalPort.Read(buf)
+				if err != nil {
+					if err != io.EOF {
+						log.Printf("read physical port error: %v\n", err)
+					}
+					break
+				}
+				if n == 0 {
+					continue
+				}
+
+				log.Printf("RX %d bytes: %q\n", n, buf[:n])
+				for _, m := range masters {
+					_, _ = m.Write(buf[:n])
+				}
 			}
 		}
 	}()
